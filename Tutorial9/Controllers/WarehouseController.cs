@@ -37,7 +37,7 @@ namespace cwiczenia6.Controllers
 
             var orderRealised = await _dbService.CheckOrderRealised(orderId);
             if (orderRealised)
-                return Conflict($"Order with ID {orderId} is already fulfilled.");
+                return Conflict($"Order with ID {orderId} is already realised.");
 
             //500 Internal Server Error
             await _dbService.updateFulfilledDate(orderId);
