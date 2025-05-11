@@ -97,30 +97,7 @@ public class DbService : IDbService
         var result = await command.ExecuteNonQueryAsync();
         return (int)result > 0;
     }
-    
-    public async Task<Boolean> CheckEnoughOfProduct(WarehouseRequestDTO request)
-    {
-        await using SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
-        await using SqlCommand command = new SqlCommand();
-        
-        command.Connection = connection;
-        await connection.OpenAsync();
-        
-        
-        command.CommandText = @"
-            SELECT COUNT(1)
-            FROM Product_Warehouse
-            WHERE IdProduct = @IdProduct AND IdWarehouse = @IdWarehouse AND Amount = @Amount;
-        ";
-        command.Parameters.AddWithValue("@IdProduct", request.IdProduct);
-        command.Parameters.AddWithValue("@IdWarehouse", request.IdWarehouse);
-        command.Parameters.AddWithValue("@Amount", request.Amount);
-
-        var result = await command.ExecuteNonQueryAsync();
-        return (int)result > 0;
-    }
-    
-    public async Task<Boolean> OrderExists(WarehouseRequestDTO request)
+    public async Task<int?> OrderExists(WarehouseRequestDTO request)
     {
         await using SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
         await using SqlCommand command = new SqlCommand();
@@ -129,15 +106,99 @@ public class DbService : IDbService
         await connection.OpenAsync();
 
         command.CommandText = @"
-            SELECT COUNT(1)
-            FROM Order
-            WHERE IdProduct = @IdProduct AND Amount = @Amount AND CreatedAt < @RequestCreatedAt
+        SELECT TOP 1 IdOrder
+        FROM [Order]
+        WHERE IdProduct = @IdProduct 
+          AND Amount = @Amount 
+          AND CreatedAt < @RequestCreatedAt
         ";
         command.Parameters.AddWithValue("@IdProduct", request.IdProduct);
         command.Parameters.AddWithValue("@Amount", request.Amount);
         command.Parameters.AddWithValue("@RequestCreatedAt", request.CreatedAt);
 
+        var result = await command.ExecuteScalarAsync();
+        if (result == null || result == DBNull.Value)
+        {
+            return null;
+        }
+        return Convert.ToInt32(result);
+    }
+    
+    public async Task<Boolean> CheckOrderRealised(int OrderId)
+    {
+        await using SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
+        await using SqlCommand command = new SqlCommand();
+
+        command.Connection = connection;
+        await connection.OpenAsync();
+
+        command.CommandText = @"
+            SELECT COUNT(1)
+            FROM Product_Warehouse
+            WHERE OrderId = @OrderId
+        ";
+        command.Parameters.AddWithValue("@OrderId", OrderId);
+
         var result = await command.ExecuteNonQueryAsync();
         return (int)result > 0;
+    }
+    
+    public async Task<Boolean> updateFulfilledDate(int OrderId)
+    {
+        await using SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
+        await using SqlCommand command = new SqlCommand();
+
+        command.Connection = connection;
+        await connection.OpenAsync();
+
+        command.CommandText = @"
+        UPDATE Order
+        SET FulfilledAt = @Now
+        WHERE IdOrder = @OrderId
+        ";
+        command.Parameters.AddWithValue("@Now", DateTime.Now);
+        command.Parameters.AddWithValue("@OrderId", OrderId);
+
+        var result = await command.ExecuteNonQueryAsync();
+        return (int)result > 0;
+    }
+    
+    public async Task<int?> InsertIntoProductWarehouse(WarehouseRequestDTO request, int orderId)
+    {
+        await using SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
+        await using SqlCommand command = new SqlCommand();
+
+        command.Connection = connection;
+        await connection.OpenAsync();
+
+        command.CommandText = "SELECT Price FROM Product WHERE IdProduct = @IdProduct";
+        command.Parameters.AddWithValue("@IdProduct", request.IdProduct);
+
+        var unitPriceObj = await command.ExecuteScalarAsync();
+        if (unitPriceObj == null)
+            return null;
+
+        decimal unitPrice = (decimal)unitPriceObj;
+        decimal totalPrice = unitPrice * request.Amount;
+
+        command.Parameters.Clear();
+
+        command.CommandText = @"
+        INSERT INTO Product_Warehouse (IdWarehouse, IdProduct, IdOrder, Amount, Price, CreatedAt)
+        VALUES (@IdWarehouse, @IdProduct, @IdOrder, @Amount, @Price, @CreatedAt)
+        ";
+        command.Parameters.AddWithValue("@IdWarehouse", request.IdWarehouse);
+        command.Parameters.AddWithValue("@IdProduct", request.IdProduct);
+        command.Parameters.AddWithValue("@IdOrder", orderId);
+        command.Parameters.AddWithValue("@Amount", request.Amount);
+        command.Parameters.AddWithValue("@Price", totalPrice);
+        command.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
+
+        var result = await command.ExecuteScalarAsync();
+        if (result == null || result == DBNull.Value)
+        {
+            return null;
+        }
+        return Convert.ToInt32(result);
     }
 }

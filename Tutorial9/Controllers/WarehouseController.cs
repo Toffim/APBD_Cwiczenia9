@@ -16,8 +16,8 @@ namespace cwiczenia6.Controllers
             _dbService = dbService;
         }
 
-        [HttpPost("checkProductExistence")]
-        public async Task<IActionResult> CheckProductExistence(WarehouseRequestDTO request)
+        [HttpPost("fulfillOrder")]
+        public async Task<IActionResult> fulfillOrder(WarehouseRequestDTO request)
         {
             if (request.Amount <= 0)
                 return BadRequest("Amount of the product must be greater than 0.");
@@ -30,21 +30,26 @@ namespace cwiczenia6.Controllers
             if (!warehouseExists)
                 return NotFound($"Warehouse with ID {request.IdWarehouse} not found.");
             
-            var enoughProduct = await _dbService.CheckEnoughOfProduct(request);
-            if (!enoughProduct)
-                return BadRequest("There is not enough of product in warehouse.");
-
-            return Ok("Validation successful.");
-        }
-        
-        [HttpPost("checkOrderExistence")]
-        public async Task<IActionResult> CheckOrderExistence(WarehouseRequestDTO request)
-        {
             var orderExists = await _dbService.OrderExists(request);
-            if (!orderExists)
+            if (orderExists == null)
                 return NotFound($"Order of product ID {request.IdProduct} and amount {request.Amount} not found.");
+            var orderId = orderExists.Value;
 
-            return Ok("Validation successful.");
+            var orderRealised = await _dbService.CheckOrderRealised(orderId);
+            if (!orderRealised)
+                return Conflict($"Order with ID {orderId} is already fulfilled.");
+
+            //500 Internal Server Error
+            var fulfillDone = await _dbService.updateFulfilledDate(orderId);
+            if (!fulfillDone)
+                return StatusCode(500, $"Could not update fulfillment date for order ID {orderId}.");
+            
+            var inserted = await _dbService.InsertIntoProductWarehouse(request, orderId);
+            if (inserted == null)
+                return StatusCode(500, $"Could not insert into Product_Warehouse for order ID {orderId}.");
+            var insertedId = inserted.Value;
+
+            return Ok(insertedId);
         }
     }
 }

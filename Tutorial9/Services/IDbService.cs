@@ -9,6 +9,8 @@ public interface IDbService
 
     Task<Boolean> ProductExists(WarehouseRequestDTO request);
     Task<Boolean> WarehouseExists(WarehouseRequestDTO request);
-    Task<Boolean> CheckEnoughOfProduct(WarehouseRequestDTO request);
-    Task<Boolean> OrderExists(WarehouseRequestDTO request);
+    Task<int?> OrderExists(WarehouseRequestDTO request);
+    Task<Boolean> CheckOrderRealised(int OrderId);
+    Task<Boolean> updateFulfilledDate(int OrderId);
+    Task<int?> InsertIntoProductWarehouse(WarehouseRequestDTO request, int orderId);
 }
