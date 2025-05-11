@@ -78,9 +78,8 @@ public class DbService : IDbService
         command.CommandText = "SELECT COUNT(1) FROM Product WHERE IdProduct = @IdProduct";
         command.Parameters.AddWithValue("@IdProduct", request.IdProduct);
     
-        var result = await command.ExecuteNonQueryAsync();
-    
-        return (int)result > 0;
+        var result = await command.ExecuteScalarAsync();
+        return Convert.ToInt32(result) > 0;
     }
 
     public async Task<Boolean> WarehouseExists(WarehouseRequestDTO request)
@@ -94,8 +93,8 @@ public class DbService : IDbService
         command.CommandText = "SELECT COUNT(1) FROM Warehouse WHERE IdWarehouse = @IdWarehouse";
         command.Parameters.AddWithValue("@IdWarehouse", request.IdWarehouse);
 
-        var result = await command.ExecuteNonQueryAsync();
-        return (int)result > 0;
+        var result = await command.ExecuteScalarAsync();
+        return Convert.ToInt32(result) > 0;
     }
     public async Task<int?> OrderExists(WarehouseRequestDTO request)
     {
@@ -135,15 +134,15 @@ public class DbService : IDbService
         command.CommandText = @"
             SELECT COUNT(1)
             FROM Product_Warehouse
-            WHERE OrderId = @OrderId
+            WHERE IdOrder = @OrderId
         ";
         command.Parameters.AddWithValue("@OrderId", OrderId);
 
-        var result = await command.ExecuteNonQueryAsync();
-        return (int)result > 0;
+        var result = await command.ExecuteScalarAsync();
+        return Convert.ToInt32(result) > 0;
     }
     
-    public async Task<Boolean> updateFulfilledDate(int OrderId)
+    public async Task updateFulfilledDate(int OrderId)
     {
         await using SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
         await using SqlCommand command = new SqlCommand();
@@ -151,16 +150,10 @@ public class DbService : IDbService
         command.Connection = connection;
         await connection.OpenAsync();
 
-        command.CommandText = @"
-        UPDATE Order
-        SET FulfilledAt = @Now
-        WHERE IdOrder = @OrderId
-        ";
-        command.Parameters.AddWithValue("@Now", DateTime.Now);
-        command.Parameters.AddWithValue("@OrderId", OrderId);
-
-        var result = await command.ExecuteNonQueryAsync();
-        return (int)result > 0;
+        command.CommandText = "UPDATE [Order] SET FulfilledAt = @FulfilledAt WHERE IdOrder = @IdOrder";
+        command.Parameters.AddWithValue("@FulfilledAt", DateTime.Now);
+        command.Parameters.AddWithValue("@IdOrder", OrderId);
+        await command.ExecuteNonQueryAsync();
     }
     
     public async Task<int?> InsertIntoProductWarehouse(WarehouseRequestDTO request, int orderId)
@@ -194,11 +187,12 @@ public class DbService : IDbService
         command.Parameters.AddWithValue("@Price", totalPrice);
         command.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
 
-        var result = await command.ExecuteScalarAsync();
-        if (result == null || result == DBNull.Value)
+
+        var insertedId = await command.ExecuteScalarAsync();
+        if (insertedId == null || insertedId == DBNull.Value)
         {
             return null;
         }
-        return Convert.ToInt32(result);
+        return Convert.ToInt32(insertedId);
     }
 }

@@ -9,9 +9,9 @@ namespace cwiczenia6.Controllers
     [ApiController]
     public class WarehouseController : ControllerBase
     {
-        private readonly DbService _dbService;
+        private readonly IDbService _dbService;
 
-        public WarehouseController(DbService dbService)
+        public WarehouseController(IDbService dbService)
         {
             _dbService = dbService;
         }
@@ -36,13 +36,11 @@ namespace cwiczenia6.Controllers
             var orderId = orderExists.Value;
 
             var orderRealised = await _dbService.CheckOrderRealised(orderId);
-            if (!orderRealised)
+            if (orderRealised)
                 return Conflict($"Order with ID {orderId} is already fulfilled.");
 
             //500 Internal Server Error
-            var fulfillDone = await _dbService.updateFulfilledDate(orderId);
-            if (!fulfillDone)
-                return StatusCode(500, $"Could not update fulfillment date for order ID {orderId}.");
+            await _dbService.updateFulfilledDate(orderId);
             
             var inserted = await _dbService.InsertIntoProductWarehouse(request, orderId);
             if (inserted == null)
