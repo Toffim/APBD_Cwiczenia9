@@ -178,7 +178,8 @@ public class DbService : IDbService
 
         command.CommandText = @"
         INSERT INTO Product_Warehouse (IdWarehouse, IdProduct, IdOrder, Amount, Price, CreatedAt)
-        VALUES (@IdWarehouse, @IdProduct, @IdOrder, @Amount, @Price, @CreatedAt)
+        VALUES (@IdWarehouse, @IdProduct, @IdOrder, @Amount, @Price, @CreatedAt);
+        SELECT SCOPE_IDENTITY();
         ";
         command.Parameters.AddWithValue("@IdWarehouse", request.IdWarehouse);
         command.Parameters.AddWithValue("@IdProduct", request.IdProduct);
