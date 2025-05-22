@@ -50,21 +50,23 @@ public class DbService : IDbService
         // END TRANSACTION
     }
 
-    public async Task ProcedureAsync()
+    public async Task<int> AddProductToWarehouseProcedure(WarehouseRequestDTO request)
     {
         await using SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
-        await using SqlCommand command = new SqlCommand();
-        
-        command.Connection = connection;
+        await using SqlCommand command = new SqlCommand("AddProductToWarehouse", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+
+        command.Parameters.AddWithValue("@IdProduct", request.IdProduct);
+        command.Parameters.AddWithValue("@IdWarehouse", request.IdWarehouse);
+        command.Parameters.AddWithValue("@Amount", request.Amount);
+        command.Parameters.AddWithValue("@CreatedAt", request.CreatedAt);
+
         await connection.OpenAsync();
-        
-        command.CommandText = "NazwaProcedury";
-        command.CommandType = CommandType.StoredProcedure;
-        
-        command.Parameters.AddWithValue("@Id", 2);
-        
-        await command.ExecuteNonQueryAsync();
-        
+        var result = await command.ExecuteScalarAsync();
+
+        return Convert.ToInt32(result);
     }
 
     public async Task<Boolean> ProductExists(WarehouseRequestDTO request)

@@ -49,5 +49,16 @@ namespace cwiczenia6.Controllers
 
             return Ok(insertedId);
         }
+        
+        [HttpPost("addProductToWarehouse-procedural")]
+        public async Task<IActionResult> AddProductToWarehouseProcedural(WarehouseRequestDTO request)
+        {
+            try {
+                var id = await _dbService.AddProductToWarehouseProcedure(request);
+                return Created(string.Empty, new { id = id });
+            } catch (Exception e) {
+                return BadRequest(e.Message);
+            }
+        }
     }
 }
